@@ -13,10 +13,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onClose, initialDifficulty = 
   const [loading, setLoading] = useState(true);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(initialDifficulty);
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [selectedDifficulty]);
-
   const fetchLeaderboard = async () => {
     try {
       const { data, error } = await supabase
@@ -35,36 +31,27 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onClose, initialDifficulty = 
     }
   };
 
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [selectedDifficulty, fetchLeaderboard]);
+
+  const difficulties = ['Very Easy', 'Easy', 'Normal', 'Hard'];
+
   return (
     <div className="overlay">
       <div className="leaderboard">
         <div className="leaderboard-header">
           <h2>리더보드</h2>
           <div className="difficulty-selector">
-            <button 
-              className={selectedDifficulty === 'Very Easy' ? 'active' : ''} 
-              onClick={() => setSelectedDifficulty('Very Easy')}
-            >
-              Very Easy
-            </button>
-            <button 
-              className={selectedDifficulty === 'Easy' ? 'active' : ''} 
-              onClick={() => setSelectedDifficulty('Easy')}
-            >
-              Easy
-            </button>
-            <button 
-              className={selectedDifficulty === 'Normal' ? 'active' : ''} 
-              onClick={() => setSelectedDifficulty('Normal')}
-            >
-              Normal
-            </button>
-            <button 
-              className={selectedDifficulty === 'Hard' ? 'active' : ''} 
-              onClick={() => setSelectedDifficulty('Hard')}
-            >
-              Hard
-            </button>
+            {difficulties.map((difficulty) => (
+              <button
+                key={difficulty}
+                className={`difficulty-button ${selectedDifficulty === difficulty ? 'active' : ''}`}
+                onClick={() => setSelectedDifficulty(difficulty as Difficulty)}
+              >
+                {difficulty}
+              </button>
+            ))}
           </div>
         </div>
         {loading ? (
