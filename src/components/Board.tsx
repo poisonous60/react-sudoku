@@ -1,16 +1,22 @@
 import React from 'react';
-import Cell from './Cell';
-import { BoardProps } from '../types';
+import Cell from './Cell.tsx';
+import { BoardProps } from '../types.ts';
 
 const Board: React.FC<BoardProps> = ({ 
-  board, 
-  initialBoard, 
+  board = [], 
+  initialBoard = [], 
   onCellClick, 
   selectedCell, 
   memoMode,
   onMemoChange,
-  isInvalid 
+  isInvalid = [],
+  memoNumbers = {},
+  onMemoNumberClick
 }) => {
+  if (!board || !initialBoard || !board.length || !initialBoard.length) {
+    return <div className="board">로딩 중...</div>;
+  }
+
   return (
     <div className="board">
       {board.map((row, rowIndex) => (
@@ -23,8 +29,11 @@ const Board: React.FC<BoardProps> = ({
               isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}
               onClick={() => onCellClick(rowIndex, colIndex)}
               memoMode={memoMode}
-              onMemoChange={(memo) => onMemoChange(rowIndex, colIndex, memo)}
-              isInvalid={isInvalid[rowIndex][colIndex]}
+              onChange={(value) => onMemoChange(rowIndex, colIndex, value)}
+              onMemoNumberClick={(number) => onMemoNumberClick(rowIndex, colIndex, number)}
+              isInvalid={isInvalid[rowIndex]?.[colIndex] || false}
+              isValid={initialBoard[rowIndex][colIndex] === 0 && board[rowIndex][colIndex] !== 0 && !isInvalid[rowIndex]?.[colIndex]}
+              memoNumbers={memoNumbers[`${rowIndex}-${colIndex}`] || []}
             />
           ))}
         </div>

@@ -15,6 +15,81 @@ const DIFFICULTY_SETTINGS = {
   'Hard': { initialNumbers: 35 }
 };
 
+// 스도쿠 보드 생성 함수
+const generateSudokuBoard = (initialNumbers: number): number[][] => {
+  // 기본 9x9 보드 생성
+  const board = Array(9).fill(0).map(() => Array(9).fill(0));
+  
+  // 첫 번째 3x3 박스에 1-9 숫자 무작위 배치
+  const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const randomIndex = Math.floor(Math.random() * numbers.length);
+      board[i][j] = numbers.splice(randomIndex, 1)[0];
+    }
+  }
+
+  // 나머지 셀에 숫자 채우기
+  const solveSudoku = (board: number[][]): boolean => {
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (board[row][col] === 0) {
+          for (let num = 1; num <= 9; num++) {
+            if (isValid(board, row, col, num)) {
+              board[row][col] = num;
+              if (solveSudoku(board)) return true;
+              board[row][col] = 0;
+            }
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  solveSudoku(board);
+
+  // 일부 숫자 제거
+  const cells = 81 - initialNumbers;
+  const positions = Array.from({ length: 81 }, (_, i) => i);
+  for (let i = 0; i < cells; i++) {
+    const randomIndex = Math.floor(Math.random() * positions.length);
+    const pos = positions.splice(randomIndex, 1)[0];
+    const row = Math.floor(pos / 9);
+    const col = pos % 9;
+    board[row][col] = 0;
+  }
+
+  return board;
+};
+
+// 유효성 검사 함수
+const isValid = (board: number[][], row: number, col: number, num: number): boolean => {
+  // 행 검사
+  for (let x = 0; x < 9; x++) {
+    if (x !== col && board[row][x] === num) return false;
+  }
+
+  // 열 검사
+  for (let x = 0; x < 9; x++) {
+    if (x !== row && board[x][col] === num) return false;
+  }
+
+  // 3x3 박스 검사
+  const startRow = Math.floor(row / 3) * 3;
+  const startCol = Math.floor(col / 3) * 3;
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const currentRow = startRow + i;
+      const currentCol = startCol + j;
+      if (currentRow !== row && currentCol !== col && board[currentRow][currentCol] === num) return false;
+    }
+  }
+
+  return true;
+};
+
 function App() {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [gameComplete, setGameComplete] = useState(false);
@@ -25,6 +100,11 @@ function App() {
   const [showNicknameInput, setShowNicknameInput] = useState(false);
   const [lastPlayedDifficulty, setLastPlayedDifficulty] = useState<Difficulty>('Normal');
   const [memoMode, setMemoMode] = useState<MemoMode>('select');
+  const [board, setBoard] = useState<number[][]>([]);
+  const [initialBoard, setInitialBoard] = useState<number[][]>([]);
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [isInvalid, setIsInvalid] = useState<boolean[][]>([]);
+  const [memoNumbers, setMemoNumbers] = useState<{ [key: string]: number[] }>({});
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -42,6 +122,84 @@ function App() {
     setGameComplete(false);
     setCompletionTime(null);
     setElapsedTime(0);
+    
+    // 난이도에 따른 초기 숫자 개수 설정
+    const initialNumbers = DIFFICULTY_SETTINGS[selectedDifficulty].initialNumbers;
+    
+    // 스도쿠 보드 생성
+    const newBoard = generateSudokuBoard(initialNumbers);
+    setBoard(newBoard);
+    setInitialBoard(newBoard.map(row => [...row])); // 깊은 복사
+    setIsInvalid(Array(9).fill(0).map(() => Array(9).fill(false)));
+    setMemoNumbers({}); // 메모 숫자 초기화
+  };
+
+  const handleCellClick = (row: number, col: number) => {
+    // 초기 숫자는 수정할 수 없음
+    if (initialBoard[row][col] !== 0) return;
+    setSelectedCell({ row, col });
+  };
+
+  const handleMemoNumberClick = (row: number, col: number, num: number) => {
+    // 초기 숫자는 수정할 수 없음
+    if (initialBoard[row][col] !== 0) return;
+
+    const key = `${row}-${col}`;
+    
+    // 지우개 모드일 때는 모든 메모 숫자를 지움
+    if (memoMode === 'eraser') {
+      setMemoNumbers(prev => ({
+        ...prev,
+        [key]: []
+      }));
+      return;
+    }
+    
+    // 메모 모드일 때는 기존 로직대로 동작
+    const currentMemos = memoNumbers[key] || [];
+    let newMemos: number[];
+    if (currentMemos.includes(num)) {
+      newMemos = currentMemos.filter(n => n !== num);
+    } else {
+      newMemos = [...currentMemos, num];
+    }
+    
+    setMemoNumbers(prev => ({
+      ...prev,
+      [key]: newMemos
+    }));
+  };
+
+  const handleMemoChange = (row: number, col: number, memo: number) => {
+    // 초기 숫자는 수정할 수 없음
+    if (initialBoard[row][col] !== 0) return;
+    
+    const newBoard = [...board];
+    newBoard[row][col] = memo;
+    setBoard(newBoard);
+
+    // 유효성 검사
+    const newIsInvalid = [...isInvalid];
+    if (memo !== 0) {
+      // 현재 입력된 숫자가 유효한지 검사
+      const isValidMove = isValid(newBoard, row, col, memo);
+      newIsInvalid[row][col] = !isValidMove;
+    } else {
+      newIsInvalid[row][col] = false;
+    }
+    setIsInvalid(newIsInvalid);
+
+    // 게임 완료 체크
+    const isComplete = newBoard.every((row, rowIndex) => 
+      row.every((cell, colIndex) => {
+        if (initialBoard[rowIndex][colIndex] !== 0) return true;
+        return cell !== 0 && isValid(newBoard, rowIndex, colIndex, cell);
+      })
+    );
+
+    if (isComplete) {
+      handleGameComplete(elapsedTime);
+    }
   };
 
   const handleGameComplete = async (time: number) => {
@@ -156,9 +314,15 @@ function App() {
             </button>
           </div>
           <Board
-            onGameComplete={handleGameComplete}
-            initialNumbers={DIFFICULTY_SETTINGS[difficulty].initialNumbers}
+            board={board}
+            initialBoard={initialBoard}
+            onCellClick={handleCellClick}
+            selectedCell={selectedCell}
             memoMode={memoMode}
+            onMemoChange={handleMemoChange}
+            isInvalid={isInvalid}
+            memoNumbers={memoNumbers}
+            onMemoNumberClick={handleMemoNumberClick}
           />
           {gameComplete && (
             <div className="overlay">

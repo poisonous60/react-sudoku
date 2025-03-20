@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { supabase, LeaderboardEntry } from '../utils/supabase.ts';
 
 type Difficulty = 'Very Easy' | 'Easy' | 'Normal' | 'Hard';
@@ -13,7 +13,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onClose, initialDifficulty = 
   const [loading, setLoading] = useState(true);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(initialDifficulty);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('leaderboard')
@@ -29,11 +29,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onClose, initialDifficulty = 
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDifficulty]);
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [selectedDifficulty, fetchLeaderboard]);
+  }, [fetchLeaderboard]);
 
   const difficulties = ['Very Easy', 'Easy', 'Normal', 'Hard'];
 
